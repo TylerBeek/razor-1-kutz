@@ -103,18 +103,21 @@
   .lede { color: var(--steel); max-width: 52ch; margin: 0 0 clamp(28px, 4vw, 52px); }
 
   /* ---------- work ---------- */
-  .work { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
-  @media (max-width: 700px) {
-    .work { display: block; columns: 2; column-gap: 14px; }
-    .work-col { display: contents; }
+  .reel {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
   }
+  .reel-track { display: flex; width: max-content; animation: reel 60s linear infinite; }
+  .reel:hover .reel-track, .reel:focus-within .reel-track, .reel.is-paused .reel-track { animation-play-state: paused; }
+  @keyframes reel { to { transform: translateX(-50%); } }
   .shot {
-    display: block; width: 100%; padding: 0; margin: 0 0 14px; border: 0;
-    background: var(--ink-raised); cursor: zoom-in; overflow: hidden;
-    break-inside: avoid; border-radius: 3px;
+    flex: none; height: clamp(300px, 56vh, 540px); padding: 0; margin: 0 14px 0 0; border: 0;
+    background: var(--ink-raised); cursor: zoom-in; overflow: hidden; border-radius: 3px;
   }
   .shot img { width: 100%; height: 100%; object-fit: cover; object-position: top; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
-  .shot:hover img { transform: scale(1.03); }
+  .shot:hover img { transform: scale(1.04); }
+  .shot:focus-visible { outline-offset: -3px; }
 
   .lightbox { border: 0; padding: 0; background: transparent; max-width: 94vw; max-height: 94vh; }
   .lightbox::backdrop { background: rgba(20, 17, 18, .92); }
@@ -169,6 +172,8 @@
     html { scroll-behavior: auto; }
     .seal img, .seal svg { animation: none; }
     .shot img { transition: none; }
+    .reel { overflow-x: auto; }
+    .reel-track { animation: none; }
   }
 </style>
 </head>
@@ -204,22 +209,18 @@
   <section class="band" id="work">
     <div class="wrap">
       <h2>The work</h2>
-      <p class="lede">Straight from the chair. Tap a photo to see it full size.</p>
-      <div class="work">
-        <div class="work-col">
-          <button class="shot" style="aspect-ratio: 449/735"><img src="images/8.webp" alt="Low fade with waves and a sharp line up" loading="lazy"></button>
-          <button class="shot" style="aspect-ratio: 712/628"><img src="images/7.webp" alt="Low cut with a razor line up and full beard" loading="lazy"></button>
-          <button class="shot" style="aspect-ratio: 870/815"><img src="images/5.webp" alt="Locs pulled up with a taper fade and beard shape up, shown from two angles" loading="lazy"></button>
-        </div>
-        <div class="work-col">
-          <button class="shot" style="aspect-ratio: 446/777"><img src="images/9.webp" alt="Skin fade blended into a full beard" loading="lazy"></button>
-          <button class="shot" style="aspect-ratio: 451/709"><img src="images/3.webp" alt="Waves with a sharp edge up and trimmed grey beard" loading="lazy"></button>
-        </div>
-        <div class="work-col">
-          <button class="shot" style="aspect-ratio: 709/837"><img src="images/4.webp" alt="Taper with a natural curly top and shaped beard" loading="lazy"></button>
-          <button class="shot" style="aspect-ratio: 705/842"><img src="images/6.webp" alt="Bald fade with a crisp hairline and beard line" loading="lazy"></button>
-          <button class="shot" style="aspect-ratio: 712/818"><img src="images/2.webp" alt="Kids cut: braided top with a skin fade on the sides" loading="lazy"></button>
-        </div>
+      <p class="lede">Straight from the chair. Hover to pause, tap a photo to see it full size.</p>
+    </div>
+    <div class="reel" id="reel">
+      <div class="reel-track">
+        <button class="shot" style="aspect-ratio: 449/735"><img src="images/8.webp" alt="Low fade with waves and a sharp line up"></button>
+        <button class="shot" style="aspect-ratio: 709/837"><img src="images/4.webp" alt="Taper with a natural curly top and shaped beard"></button>
+        <button class="shot" style="aspect-ratio: 446/777"><img src="images/9.webp" alt="Skin fade blended into a full beard"></button>
+        <button class="shot" style="aspect-ratio: 712/628"><img src="images/7.webp" alt="Low cut with a razor line up and full beard"></button>
+        <button class="shot" style="aspect-ratio: 705/842"><img src="images/6.webp" alt="Bald fade with a crisp hairline and beard line"></button>
+        <button class="shot" style="aspect-ratio: 451/709"><img src="images/3.webp" alt="Waves with a sharp edge up and trimmed grey beard"></button>
+        <button class="shot" style="aspect-ratio: 870/815"><img src="images/5.webp" alt="Locs pulled up with a taper fade and beard shape up, shown from two angles"></button>
+        <button class="shot" style="aspect-ratio: 712/818"><img src="images/2.webp" alt="Kids cut: braided top with a skin fade on the sides"></button>
       </div>
     </div>
   </section>
@@ -343,11 +344,24 @@
   // Gallery lightbox
   const box = document.getElementById('lightbox');
   const boxImg = box.querySelector('img');
-  document.querySelectorAll('.shot').forEach(b => b.addEventListener('click', () => {
-    const img = b.querySelector('img');
+  const reel = document.getElementById('reel');
+  const track = reel.querySelector('.reel-track');
+  // Second copy of the photos so the strip loops without a seam
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    [...track.children].forEach(b => {
+      const copy = b.cloneNode(true);
+      copy.setAttribute('aria-hidden', 'true'); copy.tabIndex = -1;
+      track.appendChild(copy);
+    });
+  }
+  reel.addEventListener('click', e => {
+    const img = e.target.closest('.shot')?.querySelector('img');
+    if (!img) return;
     boxImg.src = img.src; boxImg.alt = img.alt;
+    reel.classList.add('is-paused');
     box.showModal();
-  }));
+  });
+  box.addEventListener('close', () => reel.classList.remove('is-paused'));
   box.addEventListener('click', e => { if (e.target === box) box.close(); });
 </script>
 </body>
